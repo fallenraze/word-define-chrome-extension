@@ -1,0 +1,22 @@
+{
+    "manifest_version": 3,
+    "name": "Word Define on Double Click",
+    "version": "1.0",
+    "description": "Shows the definition of a word when you double-click it.",
+    "permissions": ["scripting"],
+    "host_permissions": ["<all_urls>"],
+    "content_scripts": [
+      {
+        "matches": ["<all_urls>"],
+        "js": ["content.js"],
+        "css": ["style.css"]
+      }
+    ],
+    "web_accessible_resources": [
+      {
+        "resources": ["dictionary.json"],
+        "matches": ["<all_urls>"]
+      }
+    ]
+  }
+  
