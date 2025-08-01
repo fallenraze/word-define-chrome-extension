@@ -1,22 +1,27 @@
 {
     "manifest_version": 3,
-    "name": "Word Define on Double Click",
+    "key": "hmjkhhlabdddcochlkegmepnjcgldjbn",
+
+
+    "name": "Acronym Define Extension",
     "version": "1.0",
-    "description": "Shows the definition of a word when you double-click it.",
-    "permissions": ["scripting"],
-    "host_permissions": ["<all_urls>"],
+    "description": "Shows the definition of words and acronyms when you double-click them.",
+    "permissions": ["storage", "downloads"],
+    "action": {
+      "default_popup": "popup.html"
+    },
     "content_scripts": [
       {
         "matches": ["<all_urls>"],
         "js": ["content.js"],
-        "css": ["style.css"]
+        "css": ["style.css"],
+        "all_frames": true
       }
     ],
     "web_accessible_resources": [
       {
-        "resources": ["dictionary.json"],
+        "resources": ["dictionary.json", "dictionary-manager.html", "dictionary-manager.js"],
         "matches": ["<all_urls>"]
       }
     ]
-  }
-  
+}

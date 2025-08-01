@@ -6,33 +6,107 @@ fetch(chrome.runtime.getURL("dictionary.json"))
     dictionary = data;
   });
 
-document.addEventListener("dblclick", (e) => {
-  const word = window.getSelection().toString().trim().toLowerCase();
-  if (word && dictionary[word]) {
-    // use mouse position at the time of double-click
-    showDefinition(word, dictionary[word], e.clientX, e.clientY);
+// Function to get selected text that works across different contexts
+function getSelectedText() {
+  // First try standard window selection
+  let selectedText = window.getSelection().toString().trim();
+  
+  if (selectedText) {
+    return selectedText;
   }
+  
+  // Try to get selection from Google Docs
+  try {
+    // Google Docs stores selection in a different way
+    const activeElement = document.activeElement;
+    if (activeElement && (activeElement.contentEditable === 'true' || activeElement.tagName === 'IFRAME')) {
+      // For Google Docs, we might need to look for the selection within the document
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        selectedText = selection.toString().trim();
+      }
+    }
+  } catch (e) {
+    // Ignore errors
+  }
+  
+  // Try to get selection from PDF viewers
+  try {
+    // For PDF.js viewers
+    const textLayer = document.querySelector('.textLayer');
+    if (textLayer) {
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        selectedText = selection.toString().trim();
+      }
+    }
+  } catch (e) {
+    // Ignore errors
+  }
+  
+  return selectedText;
+}
+
+// Function to get cursor/selection position that works across different contexts
+function getCursorPosition(e) {
+  let x, y;
+  
+  if (e && e.clientX && e.clientY) {
+    // Use event coordinates if available
+    x = e.clientX;
+    y = e.clientY;
+  } else {
+    // Try to get selection coordinates
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      if (rect.width > 0 || rect.height > 0) {
+        x = rect.left + (rect.width / 2);
+        y = rect.top + (rect.height / 2);
+      } else {
+        // Fallback to center of viewport
+        x = window.innerWidth / 2;
+        y = window.innerHeight / 2;
+      }
+    } else {
+      // Fallback to center of viewport
+      x = window.innerWidth / 2;
+      y = window.innerHeight / 2;
+    }
+  }
+  
+  return { x, y };
+}
+
+document.addEventListener("dblclick", (e) => {
+  const word = getSelectedText().toLowerCase();
+  if (word && dictionary[word]) {
+    const pos = getCursorPosition(e);
+    showDefinition(word, dictionary[word], pos.x, pos.y);
+  }
+  // If word is not in dictionary, don't show any popup
 });
 
 // Add hotkey listener for Ctrl+\
 document.addEventListener("keydown", (e) => {
   if (e.ctrlKey && e.key === "\\") {
     e.preventDefault(); // prevent default browser behavior
-    const selectedText = window.getSelection().toString().trim().toLowerCase();
-    if (selectedText && dictionary[selectedText]) {
-      // Get the selection's bounding rect to position popup
-      const selection = window.getSelection();
-      if (selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0).getBoundingClientRect();
-        const centerX = range.left + (range.width / 2);
-        const centerY = range.top + (range.height / 2);
-        showDefinition(selectedText, dictionary[selectedText], centerX, centerY);
+    const selectedText = getSelectedText().toLowerCase();
+    if (selectedText) {
+      const pos = getCursorPosition();
+      
+      if (dictionary[selectedText]) {
+        showDefinition(selectedText, dictionary[selectedText], pos.x, pos.y);
+      } else {
+        // Show "No definition found" for hotkey usage
+        showDefinition(selectedText, "No definition found", pos.x, pos.y, true);
       }
     }
   }
 });
 
-function showDefinition(word, definition, mouseX, mouseY) {
+function showDefinition(word, definition, mouseX, mouseY, isNotFound = false) {
   // remove any existing popup
   document.querySelectorAll(".word-popup").forEach(el => el.remove());
 
@@ -41,8 +115,12 @@ function showDefinition(word, definition, mouseX, mouseY) {
   
   // Format the content based on whether definition is array or string
   let content = `<div class="word-term"><strong>${word}</strong></div>`;
+  content += '<div class="definition-separator"></div>';
   
-  if (Array.isArray(definition)) {
+  if (isNotFound) {
+    // Handle "No definition found" case
+    content += `<div class="definition-item no-definition-found">${definition}</div>`;
+  } else if (Array.isArray(definition)) {
     // Handle array of definitions
     content += '<div class="definitions-container">';
     definition.forEach((def, index) => {
@@ -54,7 +132,6 @@ function showDefinition(word, definition, mouseX, mouseY) {
     content += '</div>';
   } else {
     // Handle single definition
-    content += `<div class="definition-separator"></div>`;
     content += `<div class="definition-item">${definition}</div>`;
   }
   
